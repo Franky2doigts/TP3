@@ -28,75 +28,53 @@ def init(par):
     # On met à jour l'interface
     parent.setParmTemplateGroup(g)
 
-def deinit(par):
-    # On crée la node Point dans le hda
-    parent:hou.Node = par
-    multiparm:hou.Parm = parent.parm("multi")
-    # Créer une node par nombre de point ajouté 
-    if multiparm != None: 
-        #boucle pour parcourir la liste des parametres
-        for i in range(0,multiparm.multiParmInstancesCount()):
-            attribexpressionSop:hou.SopNode = parent.createNode("attribexpression")
-            # On change le paramètre VEXpression à value constant
-            snippet1:hou.Parm = attribexpressionSop.parm("snippet1")
-            snippet1.set("value")
+def __add_sop_nodes(multiparm, parent):
+# boucle pour parcourir la liste des parametres
+    for i in range(0,multiparm.multiParmInstancesCount()):
+        # creation d'une SopNode ayant le nom attribexpression
+        attribexpressionSop:hou.SopNode = parent.createNode("attribexpression")
+        # On change le paramètre VEXpression à value constant
+        snippet1:hou.Parm = attribexpressionSop.parm("snippet1")
+        snippet1.set("value")
 
-        instances = multiparm.multiParmInstances()
+def __define_value_in_instance(parent_node, parm_instance,instance_name, parm_name, value):
+    # s'assurer que le nom de l'instance contient le nom du param
+    if parm_instance.name().find(instance_name) > -1:
+        # mettre la valeur dans le param ayant le chemin parm_name
+        coord_param = parent_node.parm(parm_name)
+        coord_param.set(value)
+    return parm_instance.name().find(instance_name) > -1
+
+
+
+def deinit(parent:hou.Node):
+    # on cherche le parm ayant le chemin d'accès multi, la variable
+    # est, alors, assignée à multiparm
+    multiparm:hou.Parm = parent.parm("multi")
+    # On vérifie que la variable multiparm n'est pas de type None 
+    if multiparm is not None: 
+        __add_sop_nodes(multiparm, parent)
         count = 1
         # boucle for pour parcourir les paramètres
-        for x in instances:
-            # définir la variable parm
-            parametre:hou.Parm = x
+        for x in multiparm.multiParmInstances():
+            parm_instance:hou.Parm = x
             # adapté les valeurs a la bonne node
-            n:hou.Node = parent.node("attribexpression"+str(count))
-            value = x.eval()
-
-            # vérifie l'information et cherche le caractère x et on compare à -1 si le x est trouvé ou non
-            if parametre.name().find("x") > -1:
-                xp = n.parm("valv3_1x")
-                # donner une valeur à la variable xp
-                xp.set(value)
-            
-            if n.name().find("y") > -1:
-                yp = n.parm("valv3_1y")
-                # donner une valeur à la variable yp
-                yp.set(value)
-            
-            # vérifie l'information et cherche le caractère z et on compare à -1 si le z est trouvé ou non
-            if parametre.name().find("z") > -1:
-                zp = n.parm("valv3_1z")
-                # donner une valeur à la variable zp
-                zp.set(value)   
-                                            
-                # ajoute 1 à la variable à gauche
+            curr_attribe_expression_node:hou.Node = parent.node("attribexpression"+str(count))
+            value = parm_instance.eval() # recuperer la valeur dans le parm
+            __define_value_in_instance(curr_attribe_expression_node, parm_instance, "x", "valv3_1x", value)
+            __define_value_in_instance(curr_attribe_expression_node, parm_instance, "y", "valv3_1y", value)
+            z_is_set = __define_value_in_instance(curr_attribe_expression_node, parm_instance, "z", "valv3_1z", value)                      
+            if z_is_set:
                 count+=1
-
-    
-
-
-
-    #multi.append(parm.eval())    
-    # print(instances)
-    # multi = []
-    # for x in instances:
-    #     parm:hou.Parm = x
-
-    # data = {
-    #     "points":[]
-    # }
-
-
-    g:hou.ParmTemplateGroup =  parent.parmTemplateGroup()
-    test:hou.ParmTemplate = g.find("test")
-    multi:hou.ParmTemplate = g.find("multi")
-    # Si test et/ou multi existe, on les enlève vu que nous serons un autre script
-    if  test != None:
-        g.remove(test)
-    if multi != None:
-        g.remove(multi)
-    parent.setParmTemplateGroup(g)
+    parm_template_group:hou.ParmTemplateGroup = parent.parmTemplateGroup()
+    test_parm:hou.ParmTemplate = parm_template_group.find("test")
+    # retirer les parm si ils sont presents
+    if test_parm is not None:
+        parm_template_group.remove(test_parm)
+    multi_parm:hou.ParmTemplate = parm_template_group.find("multi")
+    if multi_parm is not None:
+        parm_template_group.remove(multi_parm)
+    parent.setParmTemplateGroup(parm_template_group)
 
 def update():
-    print("")
-
-   
+    print("updated!")
